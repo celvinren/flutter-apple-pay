@@ -17,6 +17,6 @@ Flutter Apple Pay
   s.dependency 'Flutter'
   s.dependency 'Stripe'
   
-  s.ios.deployment_target = '11.0'
+  s.ios.deployment_target = '8.0'
 end
 
