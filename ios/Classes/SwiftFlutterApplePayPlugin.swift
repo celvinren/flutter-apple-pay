@@ -186,7 +186,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             }
             
             self.authorizationCompletion(stripeToken.stripeID)
-            self.completionHandler = completion
+            self.completionHandler = completion as? ((Any) -> Void)
         }
     }
     
@@ -200,7 +200,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             }
             
             self.authorizationCompletion(stripeToken.stripeID)
-            self.completionHandler = completion
+            self.completionHandler = completion as? ((Any) -> Void)
         }
     }
 
