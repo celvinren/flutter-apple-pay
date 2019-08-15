@@ -66,9 +66,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             }
             
             parameters["paymentNetworks"] = payments
-            if #available(iOS 11.0, *) {
-                parameters["requiredShippingContactFields"] = [PKContactField.name, PKContactField.postalAddress] as Set
-            }
+            // if #available(iOS 11.0, *) {
+            //     parameters["requiredShippingContactFields"] = [PKContactField.name, PKContactField.postalAddress] as Set
+            // }
             parameters["merchantCapabilities"] = PKMerchantCapability.capability3DS // optional
             
             parameters["merchantIdentifier"] = merchantIdentifier
