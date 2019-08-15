@@ -66,9 +66,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             }
             
             parameters["paymentNetworks"] = payments
-            // if #available(iOS 11.0, *) {
-            //     parameters["requiredShippingContactFields"] = [PKContactField.name, PKContactField.postalAddress] as Set
-            // }
+//            if #available(iOS 11.0, *) {
+//                parameters["requiredShippingContactFields"] = [PKContactField.name, PKContactField.postalAddress] as Set
+//            }
             parameters["merchantCapabilities"] = PKMerchantCapability.capability3DS // optional
             
             parameters["merchantIdentifier"] = merchantIdentifier
@@ -131,7 +131,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
     
     func makePaymentRequest(parameters: NSDictionary, authorizationCompletion: @escaping AuthorizationCompletion, authControllerCompletion: @escaping AuthorizationViewControllerDidFinish) {
         guard let paymentNetworks               = parameters["paymentNetworks"]                 as? [PKPaymentNetwork] else {return}
-        guard let requiredShippingContactFields = parameters["requiredShippingContactFields"]   as? Set<PKContactField> else {return}
+//        guard let requiredShippingContactFields = parameters["requiredShippingContactFields"]   as? Set<PKContactField> else {return}
         let merchantCapabilities : PKMerchantCapability = parameters["merchantCapabilities"]    as? PKMerchantCapability ?? .capability3DS
         
         guard let merchantIdentifier            = parameters["merchantIdentifier"]              as? String else {return}
@@ -150,9 +150,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             pkrequest.countryCode = countryCode
             pkrequest.currencyCode = currencyCode
             pkrequest.supportedNetworks = paymentNetworks
-            if #available(iOS 11.0, *) {
-                pkrequest.requiredShippingContactFields = requiredShippingContactFields
-            }
+//            if #available(iOS 11.0, *) {
+//                pkrequest.requiredShippingContactFields = requiredShippingContactFields
+//            }
             // This is based on using Stripe
             pkrequest.merchantCapabilities = merchantCapabilities
             
