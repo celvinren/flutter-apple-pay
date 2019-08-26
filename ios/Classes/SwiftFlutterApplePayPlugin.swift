@@ -4,13 +4,11 @@ import Foundation
 import PassKit
 import Stripe
 
-typealias AuthorizationCompletion = (_ payment: String) -> Void
-typealias AuthorizationViewControllerDidFinish = (_ error : NSDictionary) -> Void
 
 
 public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAuthorizationViewControllerDelegate {
-    var authorizationCompletion : AuthorizationCompletion!
-    var authorizationViewControllerDidFinish : AuthorizationViewControllerDidFinish!
+   
+    
     var pkrequest = PKPaymentRequest()
     var flutterResult: FlutterResult!
     
@@ -23,54 +21,66 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         if call.method == "getStripeToken" {
+            
+            do {
             flutterResult = result;
             let parameters = NSMutableDictionary()
-            var payments: [PKPaymentNetwork] = []
             var items = [PKPaymentSummaryItem]()
-            var totalPrice:Double = 0.0
             let arguments = call.arguments as! NSDictionary
             
-            guard let paymentNeworks = arguments["paymentNetworks"] as? [String] else {return}
-            guard let countryCode = arguments["countryCode"] as? String else {return}
-            guard let currencyCode = arguments["currencyCode"] as? String else {return}
-            guard let stripePublishedKey = arguments["stripePublishedKey"] as? String else {return}
-            guard let paymentItems = arguments["paymentItems"] as? [NSDictionary] else {return}
-            guard let merchantIdentifier = arguments["merchantIdentifier"] as? String else {return}
-            guard let merchantName = arguments["merchantName"] as? String else {return}
-            guard let isPending = arguments["isPending"] as? Bool else {return}
+            guard let paymentNeworks = arguments["paymentNetworks"] as? [String] else { throw PaymentError.input(error: "No payment networks provided") }
+            guard let countryCode = arguments["countryCode"] as? String else { throw PaymentError.input(error: "No country code provided") }
+            guard let currencyCode = arguments["currencyCode"] as? String else { throw PaymentError.input(error: "No currency code provided") }
+            guard let stripePublishedKey = arguments["stripePublishedKey"] as? String else { throw PaymentError.input(error: "No Stripe key provided") }
+            guard let paymentItems = arguments["paymentItems"] as? [NSDictionary], paymentItems.count > 0 else { throw PaymentError.input(error: "No payment items provided") }
+            guard let merchantIdentifier = arguments["merchantIdentifier"] as? String else { throw PaymentError.input(error: "No merchant identifier provided") }
+            guard let merchantName = arguments["merchantName"] as? String else { throw PaymentError.input(error: "No merchant name provided") }
+                
+            let isPending = arguments["isPending"] as? Bool ?? false
+            let shippingFields = arguments["shippingFields"] as? [String] ?? []
             
-            let type = isPending ? PKPaymentSummaryItemType.pending : PKPaymentSummaryItemType.final;
+            let financialStatus = isPending ? PKPaymentSummaryItemType.pending : PKPaymentSummaryItemType.final
             
+                
+            var totalPrice: Double = 0.0
             for dictionary in paymentItems {
                 guard let label = dictionary["label"] as? String else {return}
                 guard let price = dictionary["amount"] as? Double else {return}
 
                 totalPrice += price
                 
-                items.append(PKPaymentSummaryItem(label: label, amount: NSDecimalNumber(floatLiteral: price), type: type))
+                items.append(PKPaymentSummaryItem(label: label, amount: NSDecimalNumber(floatLiteral: price), type: financialStatus))
             }
             
             Stripe.setDefaultPublishableKey(stripePublishedKey)
             
-            let total = PKPaymentSummaryItem(label: merchantName, amount: NSDecimalNumber(floatLiteral:totalPrice), type: type)
+            let total = PKPaymentSummaryItem(label: merchantName, amount: NSDecimalNumber(floatLiteral:totalPrice), type: financialStatus)
             items.append(total)
             
-            paymentNeworks.forEach {
+            let paymentNetworkList: [PKPaymentNetwork] = try paymentNeworks.compactMap { system in
                 
-                guard let paymentType = PaymentSystem(rawValue: $0) else {
-                    assertionFailure("No payment type found")
-                    return
+                guard let paymentSystem = PaymentSystem(rawValue: system) else {
+                    throw PaymentError.input(error: "No payment type found")
                 }
                 
-                if let paymentNetwork = paymentType.paymentNetwork {
-                    payments.append(paymentNetwork)
-                }
+                return paymentSystem.paymentNetwork
             }
+            parameters["paymentNetworks"] = paymentNetworkList
             
-            parameters["paymentNetworks"] = payments
-//            if #available(iOS 11.0, *) {
-//                parameters["requiredShippingContactFields"] = [PKContactField.name, PKContactField.postalAddress] as Set
-//            }
+
+
+            if #available(iOS 11.0, *) {
+
+                let shipping:[PKContactField] = try shippingFields.compactMap { field in
+                
+                    guard let shippingField = ShippingField(rawValue: field) else {
+                        throw PaymentError.input(error: "No shipping field type found")
+                    }
+                
+                    return shippingField.field
+                }
+                parameters["requiredShippingContactFields"] = Set(shipping)
+            }
             parameters["merchantCapabilities"] = PKMerchantCapability.capability3DS // optional
             
             parameters["merchantIdentifier"] = merchantIdentifier
@@ -79,7 +89,17 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             
             parameters["paymentSummaryItems"] = items
             
-            makePaymentRequest(parameters: parameters,  authorizationCompletion: authorizationCompletion, authControllerCompletion: authorizationViewControllerDidFinish)
+            makePaymentRequest(parameters: parameters)
+            }
+            catch (let e) {
+                if let e = e as? PaymentError {
+                    let error: NSDictionary = ["message": e.description, "code": "402"]
+                    flutterResult(error)
+                }
+                else {
+                    flutterResult(e)
+                }
+            }
         }
         else if call.method == "closeApplePaySheetWithSuccess" {
             closeApplePaySheetWithSuccess()
@@ -87,7 +107,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         else if call.method == "closeApplePaySheetWithError" {
             closeApplePaySheetWithError()
         }  else {
-            result("Flutter method not implemented on iOS")
+            flutterResult("Flutter method not implemented on iOS")
         }
     }
     
@@ -100,6 +120,39 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         flutterResult(error)
     }
     
+    enum ShippingField: String {
+        case name
+        case postalAddress
+        case emailAddress
+        case phoneNumber
+        case phoneticName
+        
+        var field: PKContactField? {
+            
+            switch self {
+                default:
+                if #available(iOS 11.0, *) {
+                    if self == .name {
+                        return PKContactField.name
+                    }
+                    if self == .postalAddress {
+                        return PKContactField.postalAddress
+                    }
+                    if self == .emailAddress {
+                        return PKContactField.emailAddress
+                    }
+                    if self == .phoneNumber {
+                        return PKContactField.phoneNumber
+                    }
+                    if self == .phoneticName {
+                        return PKContactField.phoneticName
+                    }
+                }
+                return nil
+            }
+        }
+    }
+
     enum PaymentSystem: String {
         case visa
         case mastercard
@@ -131,9 +184,22 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         }
     }
     
-    func makePaymentRequest(parameters: NSDictionary, authorizationCompletion: @escaping AuthorizationCompletion, authControllerCompletion: @escaping AuthorizationViewControllerDidFinish) {
+    enum PaymentError: Error{
+        case input( error: String)
+        
+        var description: String {
+            switch self {
+            case .input(let error):
+                return error
+            }
+        }
+    }
+    
+    
+    func makePaymentRequest(parameters: NSDictionary) {
         guard let paymentNetworks               = parameters["paymentNetworks"]                 as? [PKPaymentNetwork] else {return}
-//        guard let requiredShippingContactFields = parameters["requiredShippingContactFields"]   as? Set<PKContactField> else {return}
+        
+        let requiredShippingContactFields = parameters["requiredShippingContactFields"]   as? Set<PKContactField> ?? Set()
         let merchantCapabilities : PKMerchantCapability = parameters["merchantCapabilities"]    as? PKMerchantCapability ?? .capability3DS
         
         guard let merchantIdentifier            = parameters["merchantIdentifier"]              as? String else {return}
@@ -142,8 +208,6 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         
         guard let paymentSummaryItems           = parameters["paymentSummaryItems"]             as? [PKPaymentSummaryItem] else {return}
         
-        self.authorizationCompletion = authorizationCompletion
-        authorizationViewControllerDidFinish = authControllerCompletion
         
         // Cards that should be accepted
         if PKPaymentAuthorizationViewController.canMakePayments(usingNetworks: paymentNetworks) {
@@ -152,9 +216,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             pkrequest.countryCode = countryCode
             pkrequest.currencyCode = currencyCode
             pkrequest.supportedNetworks = paymentNetworks
-//            if #available(iOS 11.0, *) {
-//                pkrequest.requiredShippingContactFields = requiredShippingContactFields
-//            }
+            if #available(iOS 11.0, *) {
+                pkrequest.requiredShippingContactFields = requiredShippingContactFields
+            }
             // This is based on using Stripe
             pkrequest.merchantCapabilities = merchantCapabilities
             
@@ -170,11 +234,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
                 currentViewController.present(viewController, animated: true)
             }
         } else {
-            let error: NSDictionary = ["message": "User not added some cards", "code": "404"]
-            authControllerCompletion(error)
+            let error: NSDictionary = ["message": "User can not make payments", "code": "404"]
+            authorizationViewControllerDidFinish(error)
          }
-
-        return
     }
     
     @available(iOS 11.0, *)
@@ -215,6 +277,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
                 self.completionHandler(PKPaymentAuthorizationStatus.success)
             }
         }
+        else {
+            UIApplication.shared.keyWindow?.topMostViewController()?.dismiss(animated: true, completion: nil)
+        }
     }
 
     public func closeApplePaySheetWithError() {
@@ -225,6 +290,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             else {
                 self.completionHandler(PKPaymentAuthorizationStatus.failure)
             }
+        }
+        else {
+            UIApplication.shared.keyWindow?.topMostViewController()?.dismiss(animated: true, completion: nil)
         }
     }
     

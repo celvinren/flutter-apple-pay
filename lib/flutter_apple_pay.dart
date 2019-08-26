@@ -16,6 +16,7 @@ class FlutterApplePay {
     @required String merchantName,
     bool isPending = false,
     @required List<PaymentItem> paymentItems,
+    List<ShippingField> shippingFields = const [],
     @required String stripePublishedKey,
   }) async {
     assert(countryCode != null);
@@ -35,11 +36,13 @@ class FlutterApplePay {
       'paymentItems':
           paymentItems.map((PaymentItem item) => item._toMap()).toList(),
       'merchantIdentifier': merchantIdentifier,
-      'merchantName' : merchantName,
-      'isPending' : isPending
+      'merchantName': merchantName,
+      'isPending': isPending,
+      'shippingFields': shippingFields
     };
     if (Platform.isIOS) {
-      final dynamic stripeToken = await _channel.invokeMethod('getStripeToken', args);
+      final dynamic stripeToken =
+          await _channel.invokeMethod('getStripeToken', args);
       return stripeToken;
     } else {
       throw Exception("Not supported operation system");
@@ -48,10 +51,9 @@ class FlutterApplePay {
 
   static Future<void> closeApplePaySheet({@required bool isSuccess}) async {
     if (Platform.isIOS) {
-      if(isSuccess) {
+      if (isSuccess) {
         await _channel.invokeMethod('closeApplePaySheetWithSuccess');
-      }
-      else {
+      } else {
         await _channel.invokeMethod('closeApplePaySheetWithError');
       }
     } else {
@@ -86,4 +88,12 @@ enum PaymentNetwork {
   discover,
   interac,
   privateLabel
+}
+
+enum ShippingField {
+  name,
+  postalAddress,
+  emailAddress,
+  phoneNumber,
+  phoneticName,
 }

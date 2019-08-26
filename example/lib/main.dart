@@ -18,20 +18,46 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> makePayment() async {
-    dynamic platformVersion;
-    PaymentItem paymentItems = PaymentItem(label: 'Label', amount: 51.0);
+    dynamic paymentToken;
+    PaymentItem paymentItems = PaymentItem(label: "Item Name", amount: 100.0);
     try {
-      platformVersion = await FlutterApplePay.makePayment(
+      await Future.delayed(Duration(milliseconds: 100));
+
+      // wait because apple pay will put whole app in pause
+      paymentToken = await FlutterApplePay.getStripeToken(
+        stripePublishedKey: "pk_test_00000000000000000000000000",
         countryCode: "US",
         currencyCode: "USD",
-        paymentNetworks: [PaymentNetwork.visa, PaymentNetwork.mastercard],
-        merchantIdentifier: "merchant.stripeApplePayTest",
+        paymentNetworks: [
+          PaymentNetwork.visa,
+          PaymentNetwork.mastercard,
+          PaymentNetwork.amex,
+          PaymentNetwork.quicPay,
+          PaymentNetwork.discover
+        ],
+        shippingFields: [
+          ShippingField.emailAddress,
+          ShippingField.name,
+          ShippingField.phoneNumber,
+          ShippingField.emailAddress,
+        ],
+        merchantIdentifier: "com.example.exampleapp",
         paymentItems: [paymentItems],
-        stripePublishedKey: "pk_test_TYooMQauvdEDq54NiTphI7jx"
+        merchantName: "Example",
       );
-      print(platformVersion);
+
+      if (paymentToken is String) {
+        await FlutterApplePay.closeApplePaySheet(isSuccess: true);
+
+        /**
+           * Apple pay & stripe purchase complete
+           */
+
+      } else {
+        await FlutterApplePay.closeApplePaySheet(isSuccess: false);
+      }
     } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
+      throw Exception('Failed to get platform version.');
     }
   }
 
@@ -43,18 +69,16 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Apple Pay Test'),
         ),
         body: Center(
-          child:
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-                Text('Waiting for Apple Pay modal.'),
-                RaisedButton(
-                  child: Text('Call payment'),
-                  onPressed: () => makePayment(),
-                )
-            ],
-          )
-        ),
+            child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text('Waiting for Apple Pay modal.'),
+            RaisedButton(
+              child: Text('Call payment'),
+              onPressed: () => makePayment(),
+            )
+          ],
+        )),
       ),
     );
   }
