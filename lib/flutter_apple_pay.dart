@@ -5,8 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 
 class FlutterApplePay {
-  static const MethodChannel _channel =
-      const MethodChannel('flutter_apple_pay');
+  static const MethodChannel _channel = const MethodChannel('flutter_apple_pay');
 
   static Future<dynamic> getStripeToken({
     @required String countryCode,
@@ -28,21 +27,18 @@ class FlutterApplePay {
     assert(stripePublishedKey != null);
 
     final Map<String, Object> args = <String, dynamic>{
-      'paymentNetworks':
-          paymentNetworks.map((item) => item.toString().split('.')[1]).toList(),
+      'paymentNetworks': paymentNetworks.map((item) => item.toString().split('.')[1]).toList(),
       'countryCode': countryCode,
       'stripePublishedKey': stripePublishedKey,
       'currencyCode': currencyCode,
-      'paymentItems':
-          paymentItems.map((PaymentItem item) => item._toMap()).toList(),
+      'paymentItems': paymentItems.map((PaymentItem item) => item._toMap()).toList(),
       'merchantIdentifier': merchantIdentifier,
       'merchantName': merchantName,
       'isPending': isPending,
-      'shippingFields': shippingFields
+      'shippingFields': shippingFields.map((item) => item.toString().split('.')[1]).toList(),
     };
     if (Platform.isIOS) {
-      final dynamic stripeToken =
-          await _channel.invokeMethod('getStripeToken', args);
+      final dynamic stripeToken = await _channel.invokeMethod('getStripeToken', args);
       return stripeToken;
     } else {
       throw Exception("Not supported operation system");
@@ -79,16 +75,7 @@ class PaymentItem {
   }
 }
 
-enum PaymentNetwork {
-  visa,
-  mastercard,
-  amex,
-  quicPay,
-  chinaUnionPay,
-  discover,
-  interac,
-  privateLabel
-}
+enum PaymentNetwork { visa, mastercard, amex, quicPay, chinaUnionPay, discover, interac, privateLabel }
 
 enum ShippingField {
   name,
