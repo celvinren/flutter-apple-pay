@@ -35,7 +35,7 @@ class FlutterApplePay {
       'merchantIdentifier': merchantIdentifier,
       'merchantName': merchantName,
       'isPending': isPending,
-      'shippingFields': shippingFields.map((item) => item.toString().split('.')[1]).toList(),
+      'shippingFields': shippingFields?.map((item) => item.toString().split('.')[1]).toList(),
     };
     if (Platform.isIOS) {
       final dynamic stripeToken = await _channel.invokeMethod('getStripeToken', args);
