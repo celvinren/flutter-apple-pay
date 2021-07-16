@@ -249,8 +249,9 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
                 completion(PKPaymentAuthorizationResult(status: .failure, errors: nil))
                 return
             }
-            
-            let paymentResult: NSDictionary = ["stripeID": stripeToken.stripeID, "details": payment]                                              
+                                                          
+
+            let paymentResult: NSDictionary = ["stripeID": stripeToken.stripeID, "billingContactEmail": payment.billingContact?.emailAddress ?? "", "shippingContactEmail": payment.shippingContact?.emailAddress ?? "", ]                                              
             self.authorizationCompletion(paymentResult)
             self.completionHandler = completion as? ((Any) -> Void)
         }
@@ -265,7 +266,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
                 return
             }
             
-            let paymentResult: NSDictionary = ["stripeID": stripeToken.stripeID, "details": payment]                                              
+            let paymentResult: NSDictionary = ["stripeID": stripeToken.stripeID, "billingContactEmail": payment.billingContact?.emailAddress ?? "", "shippingContactEmail": payment.shippingContact?.emailAddress ?? "", ]                                              
             self.authorizationCompletion(paymentResult)
             self.completionHandler = completion as? ((Any) -> Void)
         }
